@@ -50,6 +50,7 @@
     <modules>
         <module>ND4jExamples</module>
         <module>NeuralNet</module>
+        <module>DatasetManager</module>
     </modules>
 
     <!-- Maven Enforcer: Ensures user has an up to date version of Maven before building -->
