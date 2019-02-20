@@ -46,8 +46,8 @@ public class Mnist {
         final Random random = new Random(seed);
 
         final DataNormalization scaler = new ImagePreProcessingScaler(0, 1);
-        final DataSetIterator trainIter = dataSetIterator(new File("/Users/incognito/Downloads/mnist/mnist_png/training"), random);
-        final DataSetIterator testIter = dataSetIterator(new File("/Users/incognito/Downloads/mnist/mnist_png/testing"), random);
+        final DataSetIterator trainIter = dataSetIterator(new File("/home/incognito/Downloads/mnist/mnist_png/training"), random);
+        final DataSetIterator testIter = dataSetIterator(new File("/home/incognito/Downloads/mnist/mnist_png/testing"), random);
         scaler.fit(trainIter);
         trainIter.setPreProcessor(scaler);
         testIter.setPreProcessor(scaler);
@@ -104,7 +104,7 @@ public class Mnist {
         }
 
         try {
-            ModelSerializer.writeModel(net, new File("/Users/incognito/Downloads/mnist/mnist-model.zip"), true);
+            ModelSerializer.writeModel(net, new File("/home/incognito/Downloads/mnist/mnist-model.zip"), true);
         } catch (IOException e) {
             log.error("Saving Error: " + e.getMessage(), e);
         }

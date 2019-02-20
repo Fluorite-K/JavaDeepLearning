@@ -3,8 +3,10 @@ package cnn;
 import org.datavec.api.split.FileSplit;
 import org.datavec.image.loader.NativeImageLoader;
 import org.datavec.image.recordreader.objdetect.ImageObjectLabelProvider;
-import org.datavec.image.recordreader.objdetect.ObjectDetectionRecordReader;
+//import org.datavec.image.recordreader.objdetect.ObjectDetectionRecordReader;
 //import org.datavec.image.recordreader.objdetect.impl.SvhnLabelProvider;
+import org.datavec.image.recordreader.objdetect.ObjectDetectionRecordReader;
+import org.datavec.image.recordreader.objdetect.impl.SvhnLabelProvider;
 import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator;
 import org.deeplearning4j.datasets.fetchers.DataSetType;
 import org.deeplearning4j.datasets.fetchers.SvhnDataFetcher;
@@ -36,6 +38,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
 
+import label_provider.PascalVocLabelProvider;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -141,7 +144,7 @@ public class YoloV2 {
     private static final int gridHeight = 13;
 
     // number classes (digits) for dataset.
-    private static final int nClasses = 10;
+    private static final int nClasses = 8;
 
     // parameters for the Yolo2OutputLayer
     private static final double[][] priorBoxes = {{2, 5}, {2.5, 6}, {3, 7}, {3.5, 8}, {4, 9}};
@@ -151,8 +154,8 @@ public class YoloV2 {
     private static final double detectionThreshold = 0.5;
 
     // parameters for the training phase
-    private static final int batchSize = 10;
-    private static final int nEpochs = 20;
+    private static final int batchSize = 2;
+    private static final int nEpochs = 2;
     private static final double learningRate = 1e-4;
     private static final double lrMomentum = 0.9;
 
@@ -193,13 +196,40 @@ public class YoloV2 {
     }
 
     public static void main(String[] args) throws IOException {
-        test();
+        genYolo();
     }
 
     private static void genYolo() throws IOException {
         final Random rng = new Random(seed);
 
         final String removalLayer = "conv2d_23";
+
+        log.info("Load data...");
+        final String home = System.getProperty("user.home");
+        final String trainImg = home+"/dev/dataset/VOCdevkit/VOC2007/train/";
+        final String trainXml = home+"/dev/dataset/VOCdevkit/VOC2007/xml/train/";
+        final String testImg = home+"/dev/dataset/VOCdevkit/VOC2007/test/";
+        final String testXml = home+"/dev/dataset/VOCdevkit/VOC2007/xml/test/";
+
+        FileSplit trainData = new FileSplit(new File(trainImg), NativeImageLoader.ALLOWED_FORMATS, rng);
+        FileSplit testData = new FileSplit(new File(testImg), NativeImageLoader.ALLOWED_FORMATS, rng);
+
+        System.out.println(testData.getRootDir());
+
+        ObjectDetectionRecordReader recordReaderTrain = new ObjectDetectionRecordReader(height, width, nChannels,
+                gridHeight, gridWidth, new PascalVocLabelProvider(new File(trainXml)));
+        recordReaderTrain.initialize(trainData);
+
+        ObjectDetectionRecordReader recordReaderTest = new ObjectDetectionRecordReader(height, width, nChannels,
+                gridHeight, gridWidth, new PascalVocLabelProvider(new File(testXml)));
+        recordReaderTest.initialize(testData);
+
+        // ObjectDetectionRecordReader performs regression, so we need to specify it here
+        RecordReaderDataSetIterator train = new RecordReaderDataSetIterator(recordReaderTrain, batchSize, 1, 1, true);
+        train.setPreProcessor(new ImagePreProcessingScaler(0, 1));
+
+        RecordReaderDataSetIterator test = new RecordReaderDataSetIterator(recordReaderTest, 1, 1, 1, true);
+        test.setPreProcessor(new ImagePreProcessingScaler(0, 1));
 
         final ComputationGraph model;
         final String modelFilename = "yolo_v2_model.zip";
@@ -256,13 +286,13 @@ public class YoloV2 {
             log.info("Train model...");
 
             model.setListeners(new ScoreIterationListener(1));
-//            for (int i = 0; i < nEpochs; i++) {
-//                train.reset();
-//                while (train.hasNext()) {
-//                    model.fit(train.next());
-//                }
-//                log.info("*** Completed epoch {} ***", i);
-//            }
+            for (int i = 0; i < nEpochs; i++) {
+                train.reset();
+                while (train.hasNext()) {
+                    model.fit(train.next());
+                }
+                log.info("*** Completed epoch {} ***", i);
+            }
             ModelSerializer.writeModel(model, modelFilename, true);
         }
     }
